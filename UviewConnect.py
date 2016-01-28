@@ -1,24 +1,94 @@
-# -*- coding: utf-8 -*-
 """
 Created on Mon Sep 29 15:51:22 2014
+Modified on Thu Jan 28 15:17:34 2016
 
-@author: Helder
-"""
+@author: Helder Marchetto
 
-# -*- coding: utf-8 -*-
-"""
-Created on Thu Sep 25 13:10:31 2014
+*** Diamond Instruction ***
+Connnecting to uView is only possible from Python and 
+not from Jython (the numpy library is unavailable in Jython).
+1) Open a Terminal
+2) Type in "python":
+[i06user@i06-ws001 Desktop]$ python
+3) Type in the following lines:
+import sys
+import os
+sys.path.append(os.path.abspath("/dls_sw/i06/scripts/maccherozzi/TCP_Elmitec"))
+import UviewConnect
+4) Start the connection to Uview with:
+uvc = UviewConnect.oUview()
+Notice that if the Uview PC IP or Port changes, you have to connect this way: 
+uvc = UviewConnect.oUview(ip= '172.23.106.79', port=5570)
+Substituting the appropriate IP address and Port.
 
-@author: Helder
-"""
+Basic instructions:
+See all available functions with:
+>>> dir(uvc)
+['TCPBlockingReceive', 'UviewConnected', '__class__', '__delattr__', '__dict__', 
+'__doc__', '__enter__', '__exit__', '__format__', '__getattribute__', '__hash__', 
+'__init__', '__module__', '__new__', '__reduce__', '__reduce_ex__', '__repr__', 
+'__setattr__', '__sizeof__', '__str__', '__subclasshook__', '__weakref__', 
+'acquireSingleImg', 'aip', 'connect', 'disconnect', 'exportImage', 'getAcqState', 
+'getAvr', 'getCameraSize', 'getExposureTime', 'getImage', 'getMarkerInfo', 
+'getNrActiveMarkers', 'getROI', 'getTcp', 'ip', 'lastTime', 'port', 's', 
+'setAcqState', 'setAvr', 'setExposureTime', 'setIP', 'setPort', 'setTcp', 
+'testConnect']
+Or use help(uvc) and get a long list:
+Help on oUview in module UviewConnect object:
 
-"""
-First generate an object capable of reading and writing values to Leem2000 and Uview
+class oUview(__builtin__.object)
+ |  Methods defined here:
+ |  
+ |  TCPBlockingReceive(self)
+ |  
+ |  __enter__(self)
+ |  
+ |  __exit__(self, type, value, traceback)
+ |  
+ |  __init__(self, ip='172.23.106.79', port=5570, directConnect=True)
+ |  
+ |  acquireSingleImg(self, id=-1)
+ |  
+ |  aip(self)
+ |  
+ |  connect(self)
+ |  
+ |  disconnect(self)
+ |  
+ |  exportImage(self, fileName, imgFormat='0', imgContents='0')
+ |  
+ |  getAcqState(self)
+ |  
+ |  getAvr(self)
+ |  
+ |  getCameraSize(self)
+ |  
+ |  getExposureTime(self)
+ |  
+ |  getImage(self)
+...
+
+Get the average status:
+>>> uvc.getAvr()
+1
+Where "1" is the number in the drop down menu in Uview (0:no average;1:sliding average;2:average 2;...)
+
+Set the average to no average (nr 0):
+>>> uvc.setAvr(0)
+'0'
+
+Get an image with:
+>>> img = uvc.getImage()
+>>> img.shape
+(512, 512)
+>>> type(img)
+<type 'numpy.ndarray'>
 """
 import socket
 import time
 import numpy as np
 import struct
+import sys
 
 def is_number(s):
     try:
@@ -34,10 +104,10 @@ class oUview(object):
     def __enter__(self):
         return self
 
-    def __init__(self, ip= 'localhost', port=5570, directConnect=True):
+    def __init__(self, ip= '172.23.106.79', port=5570, directConnect=True):
       if type(ip) <> str:
           print 'Uview_Host must be a string. Using localhost instead.'
-          self.ip = 'localhost'
+          self.ip = '172.23.106.79'
       else:
           self.ip = ip
       if type(port) <> int:
@@ -124,6 +194,7 @@ class oUview(object):
             self.s.send('clo')
             self.s.close()
             self.UviewConnected = False
+            print "Disconnected!"
 
     def getImage(self):
         if not self.UviewConnected:
@@ -142,8 +213,12 @@ class oUview(object):
             xs = int(arr[1])
             ys = int(arr[2])
             img = np.zeros((xs,ys), dtype=np.uint16) #must be 16 bit
-            for i in range(ys):
-                img[:,i] = struct.unpack('{}H'.format(xs), self.s.recv(xs*2))
+            if sys.version_info >= (2,7):
+                for i in range(ys):
+                    img[:,i] = struct.unpack('{}H'.format(xs), self.s.recv(xs*2))
+            else:
+                for i in range(ys):
+                    img[:,i] = struct.unpack('{0}H'.format(xs), self.s.recv(xs*2))
             return img
 
     def exportImage(self, fileName, imgFormat='0', imgContents='0'):
@@ -348,3 +423,4 @@ class oUview(object):
             if ord(Bytereceived) != 0:
                 szData = szData + Bytereceived
         return szData
+

@@ -1,8 +1,29 @@
-# -*- coding: utf-8 -*-
 """
 Created on Thu Sep 25 13:10:31 2014
 
 @author: Helder Marchetto
+
+Diamond: To connnect type:
+
+Shortcut commands:
+import sys
+import os
+sys.path.append(os.path.abspath("/dls_sw/i06/scripts/maccherozzi/TCP_Elmitec"))
+import LeemConnect
+oLeem = LeemConnect.oLeem()
+
+
+
+1) Open a Terminal
+2) Type in "python":
+[i06user@i06-ws001 Desktop]$ python
+3) Type in the following lines:
+import sys
+import os
+sys.path.append(os.path.abspath("/dls_sw/i06/scripts/maccherozzi/TCP_Elmitec"))
+import LeemConnect
+4) Start the connection to leem2000 with:
+oLeem = LeemConnect.oLeem()
 
 The purpose of this Module is to create a wrapper for TCP commands for Leem2000
 It can be used as follows:
@@ -41,10 +62,10 @@ class oLeem(object):
     def __enter__(self):
         return self
 
-    def __init__(self, ip= 'localhost', port=5566, directConnect=True):
+    def __init__(self, ip= '172.23.106.79', port=5566, directConnect=True):
       if type(ip) <> str:
           print 'LEEM_Host must be a string. Using localhost instead.'
-          self.ip = 'localhost'
+          self.ip = '172.23.106.79'
       else:
           self.ip = ip
       if type(port) <> int:
@@ -79,6 +100,14 @@ class oLeem(object):
             #Get list of devices
             self.updateModules()
             self.updateValues()
+            print("Connected. %i modules found " % len(self.Mnemonic))
+            print "#########################################"
+            print "To see which devices are available, type:"
+            print "for i in oLeem.Modules.values(): print i"
+            print "for i in oLeem.Mnemonic.values(): print i"
+            print "#########################################"
+            print "To check the value of a device, type:"
+            print "print oLeem.getValue('FL')"
 
     def testConnect(self):
         if self.Leem2000Connected:
@@ -162,22 +191,20 @@ class oLeem(object):
             self.ModulesUp    = {}
             for x in range(self.nModules):
                 data = self.getTcp('nam '+str(x), False, False, True)
-                if not data in ['no name','invalid']:
+                if not data in ['', 'no name','invalid','disabled']:
                     self.Modules[x]   = data
                     self.ModulesUp[x] = data.upper()
                     self.invModules[data.upper()] = x
-            for x in range(self.nModules):
                 data = self.getTcp('mne '+str(x), False, False, True)
-                if not data in ['','invalid']:
+                if not data in ['', 'no name','invalid','disabled']:
                     self.Mnemonic[x]   = data
                     self.MnemonicUp[x] = data.upper()
                     self.invMnemonic[data.upper()] = x
-            for x in range(self.nModules):
-                ll = self.getLowLimit(x)
-                hl = self.getHighLimit(x)
-                if (not ll in ['','invalid']) and is_number(ll):
+                ll = self.getLowLimit(x, isNotSetup=False)
+                hl = self.getHighLimit(x, isNotSetup=False)
+                if (not ll in ['', 'no name','invalid','disabled']) and is_number(ll):
                     self.lowLimit[x]  = ll
-                if (not hl in ['','invalid']) and is_number(hl):
+                if (not hl in ['', 'no name','invalid','disabled']) and is_number(hl):
                     self.highLimit[x] = hl
 
     def get(self, TCPString, module):
@@ -196,14 +223,14 @@ class oLeem(object):
                 return 'Module number '+str(module)+' not found'
         else:
             module = str(module)
-            if self.MnemonicUp.has_key(module.upper()):
-                data = self.getTcp(TCPString+self.invModules[module.upper()], False, False, True)
+            if module.upper() in self.invModules:
+                data = self.getTcp(TCPString+(self.invModules[module.upper()]), False, False, True)
                 if (not data in ['','invalid']) and is_number(data):
                     return float(data)
                 else:
                     return 'invalid'
-            elif self.ModulesUp.has_key(module.upper()):
-                data = self.getTcp(TCPString+self.invMnemonic[module.upper()], False, False, True)
+            elif module.upper() in self.invMnemonic:
+                data = self.getTcp(TCPString+str(self.invMnemonic[module.upper()]), False, False, True)
                 if not data in ['','invalid'] and is_number(data):
                     return float(data)
                 else:
@@ -242,25 +269,26 @@ class oLeem(object):
                 else:
                     return False
 
-    def getLowLimit(self, module):
+    def getLowLimit(self, module, isNotSetup=True):
         if not self.Leem2000Connected:
             print 'Please connect first'
             return None
         else:
-            if (time.time()-self.lastTime) < 0.3:
+            
+            if (time.time()-self.lastTime) < 0.3 and isNotSetup:
                 time.sleep(0.3)
-                self.lastTime = time.time()
+            self.lastTime = time.time()
             TCPString = 'psl '
             return self.get(TCPString,module)
 
-    def getHighLimit(self, module):
+    def getHighLimit(self, module, isNotSetup=True):
         if not self.Leem2000Connected:
             print 'Please connect first'
             return None
         else:
-            if (time.time()-self.lastTime) < 0.3:
+            if (time.time()-self.lastTime) < 0.3 and isNotSetup:
                 time.sleep(0.3)
-                self.lastTime = time.time()
+            self.lastTime = time.time()
             TCPString = 'psh '
             return self.get(TCPString,module)
 
@@ -334,3 +362,4 @@ class oLeem(object):
            if ord(Bytereceived) != 0:
                szData = szData + Bytereceived
        return szData
+

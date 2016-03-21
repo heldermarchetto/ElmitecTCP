@@ -1,6 +1,5 @@
 """
 Created on Mon Sep 29 15:51:22 2014
-Modified on Thu Jan 28 15:17:34 2016
 
 @author: Helder Marchetto
 
